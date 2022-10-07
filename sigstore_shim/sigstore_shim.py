@@ -6,8 +6,14 @@ import simplejson as json
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
+from textwrap import dedent
 from typing import cast
 
+
+from sigstore._internal.oidc.ambient import (
+    detect_credential,
+    GitHubOidcPermissionCredentialError
+)
 from sigstore._internal.oidc.issuer import Issuer
 from sigstore._internal.oidc.oauth import (
     DEFAULT_OAUTH_ISSUER,
@@ -29,19 +35,56 @@ REKOR_API_HEADERS = {
 }
 
 # Sign an artifact using sigstore-python. Returns SigningResult
-def sign(artifact, staging=False):
+def sign(artifact, identity_token=None, disable_oidc_ambient_providers=False, oidc_issuer=DEFAULT_OAUTH_ISSUER, staging=False):
     if staging:
         signer = Signer.staging()
-        issuer = Issuer(STAGING_OAUTH_ISSUER)
     else:
         signer = Signer.production()
-        issuer = Issuer(DEFAULT_OAUTH_ISSUER)
 
-    identity_token = get_identity_token(
-        "sigstore",
-        "", # oidc client secret
-        issuer,
-    )
+    if not identity_token and not disable_oidc_ambient_providers:
+        try:
+            identity_token = detect_credential()
+        except GitHubOidcPermissionCredentialError as exception:
+            # Provide some common reasons for why we hit permission errors in
+            # GitHub Actions.
+            print(
+                dedent(
+                    f"""
+                    Insufficient permissions for GitHub Actions workflow.
+
+                    The most common reason for this is incorrect
+                    configuration of the top-level `permissions` setting of the
+                    workflow YAML file. It should be configured like so:
+
+                        permissions:
+                          id-token: write
+
+                    Relevant documentation here:
+
+                        https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect#adding-permissions-settings
+
+                    Another possible reason is that the workflow run has been
+                    triggered by a PR from a forked repository. PRs from forked
+                    repositories typically cannot be granted write access.
+
+                    Relevant documentation here:
+
+                        https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
+
+                    Additional context:
+
+                    {exception}
+                    """
+                )
+            )
+            raise exception
+    if not identity_token:
+        issuer = Issuer(oidc_issuer)
+        identity_token = get_identity_token(
+            "sigstore",
+            "", # oidc client secret
+            issuer,
+        )
 
     return signer.sign(
         input_=artifact,

@@ -8,30 +8,16 @@ from sigstore._internal.oidc.ambient import (
 from sigstore._internal.oidc.issuer import Issuer
 from sigstore._internal.oidc.oauth import (
     DEFAULT_OAUTH_ISSUER,
-    STAGING_OAUTH_ISSUER,
     get_identity_token,
 )
-from sigstore._sign import Signer
+from sigstore._sign import Signer, SigningResult
 from sigstore._verify import (
-    CertificateVerificationFailure,
     VerificationFailure,
     Verifier,
 )
 
-REKOR_URL = "https://rekor.sigstore.dev"
-
-REKOR_API_HEADERS = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-}
-
 # Sign an artifact using sigstore-python. Returns SigningResult
-def sign(artifact, identity_token=None, disable_oidc_ambient_providers=False, oidc_issuer=DEFAULT_OAUTH_ISSUER, staging=False):
-    if staging:
-        signer = Signer.staging()
-    else:
-        signer = Signer.production()
-
+def sign(artifact, signer=Signer.production(), identity_token=None, disable_oidc_ambient_providers=False, oidc_issuer=DEFAULT_OAUTH_ISSUER, oidc_client_id="sigstore", oidc_client_secret="") -> SigningResult:
     if not identity_token and not disable_oidc_ambient_providers:
         try:
             identity_token = detect_credential()
@@ -72,8 +58,8 @@ def sign(artifact, identity_token=None, disable_oidc_ambient_providers=False, oi
     if not identity_token:
         issuer = Issuer(oidc_issuer)
         identity_token = get_identity_token(
-            "sigstore",
-            "", # oidc client secret
+            oidc_client_id,
+            oidc_client_secret, # oidc client secret
             issuer,
         )
 
@@ -84,12 +70,7 @@ def sign(artifact, identity_token=None, disable_oidc_ambient_providers=False, oi
 
 
 # Verify an artifact, signature, and certificate using sigstore-python. Returns boolean
-def verify(artifact, crt, sig, staging=False):
-    if staging:
-        verifier = Verifier.staging()
-    else:
-        verifier = Verifier.production()
-
+def verify(artifact, crt, sig, verifier=Verifier.production()) -> bool:
     result = verifier.verify(
         input_=artifact,
         certificate=crt,

@@ -7,6 +7,13 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
+REKOR_URL = "https://rekor.sigstore.dev"
+
+REKOR_API_HEADERS = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+}
+
 # This file contains extra functions that do not use `sigstore-python`, instead making direct API requests to the public Sigstore instance.
 
 # Sign an artifact locally, then upload the signature, pubkey, and hash to Sigstore.

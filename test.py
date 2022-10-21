@@ -38,7 +38,7 @@ def main():
     artifact = b"Sigstore is the future!"
 
     # Sign artifact using sigstore staging infrastructure
-    signing_result = sigstore_shim.sign(artifact, staging=True)
+    signing_result = sigstore_shim.sign(artifact)
 
     print("Using ephemeral certificate:")
     print(signing_result.cert_pem)
@@ -50,7 +50,7 @@ def main():
 
     print(" --- VERIFICATION STEP --- ")
 
-    sigstore_shim.verify(artifact, artifact_certificate, artifact_signature, staging=True)
+    sigstore_shim.verify(artifact, artifact_certificate, artifact_signature)
 
 
 if __name__ == "__main__":

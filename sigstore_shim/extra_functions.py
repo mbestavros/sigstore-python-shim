@@ -85,7 +85,7 @@ def search(email=None, pubkey=None, hash=None):
 def fetch_with_uuid(uuid):
     return requests.get(f"{REKOR_URL}/api/v1/log/entries/{uuid}",  headers=REKOR_API_HEADERS)
 
-def fetch_with_inputs(signature, pubkey, hash):
+def fetch_with_inputs(signature=b"", pubkey=None, hash=""):
     artifact_signature_b64 = base64.b64encode(signature)
     pub_b64 = _encode_pubkey(pubkey)
 
@@ -116,6 +116,8 @@ def fetch_with_inputs(signature, pubkey, hash):
     return requests.post(f"{REKOR_URL}/api/v1/log/entries/retrieve", data=payload,  headers=REKOR_API_HEADERS)
 
 def _encode_pubkey(pubkey):
+    if not pubkey:
+        return ""
     # serializing into PEM
     rsa_pem = pubkey.public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo)
     pub_pem = rsa_pem.decode("utf-8").replace("\\n", "")
